@@ -1,3 +1,7 @@
+dependencies:
+  pre:
+    - gem install bundler 
+
 database:
   override:
     - echo "no database"
