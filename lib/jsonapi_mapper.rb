@@ -1,125 +1,166 @@
 require "jsonapi_mapper/version"
 
 module JsonapiMapper
-  def self.doc(document, rules)
-    DocumentMapper.new(document, rules)
+  def self.doc(document, rules, renames = {})
+    DocumentMapper.new(document, [], rules, renames)
   end
 
-  JsonId = Struct.new(:type, :id)
-  Resource = Struct.new(:object, :json, :json_id)
+  def self.doc_unsafe!(document, unscoped, rules, renames = {})
+    DocumentMapper.new(document, unscoped, rules, renames)
+  end
+
+  class RulesError < StandardError; end;
+
+  Id = Struct.new(:type, :raw)
+  Type = Struct.new(:name, :class, :rule)
+  Resource = Struct.new(:object, :relationships, :id)
   Rule = Struct.new(:attributes, :scope)
 
   class DocumentMapper
-    attr_accessor :document, :rules, :classes, :resources, :data, :included
+    attr_accessor :document, :unscoped, :types, :renames, :resources,
+      :data, :included
 
-    def initialize(document, raw_rules)
+    def initialize(document, unscoped, rules, renames)
       self.document = document.deep_symbolize_keys
+      self.renames = renames.deep_symbolize_keys
+      self.unscoped = unscoped.map(&:to_sym)
       self.resources = {}
-      self.classes = {}
-      self.rules = {}
 
-      raw_rules.each do |k,v|
-        raise "Missing Scope for #{k}" unless v.last.is_a?(Hash)
+      setup_types(rules)
 
-        attrs = v[0..-2]
-
-        unless attrs.all?{|v| v.is_a?(Symbol) || v.is_a?(String) } 
-          raise 'Attributes must be Strings or Symbols'
+      main = if data = document[:data]
+        if data.is_a?(Array)
+          data.map{|r| build_resource(r) }.compact
+        else
+          build_resource(data)
         end
-
-        cls = "#{k.to_s.singularize}".camelize.constantize
-        attrs.each do |a|
-          unless cls.new.respond_to?(a)
-            raise NoMethodError.new("undefined method #{a} for #{cls}")
-          end
-        end
-
-        rule = rules[k.to_sym] = Rule.new(attrs.map(&:to_sym), v.last)
-        classes[k.to_sym] = [cls, rule]
       end
 
-      main = build_resource(document[:data])
       rest = if included = document[:included]
         included.map{|r| build_resource(r) }.compact
       end
 
-      resources.each do |k,v|
-        build_relationships(v)
-      end
+      resources.each{|_,r| assign_relationships(r) }
 
-      self.data = main.is_a?(Array) ? main.map(&:object) : main.object 
+      self.data = main.is_a?(Array) ? main.map(&:object) : main.try(:object)
       self.included = rest.try(:map, &:object)
     end
 
+    def setup_types(rules)
+      self.types = {}
+      rules.each do |type_name, ruleset|
+        type_name = type_name.to_sym
+
+        attrs, scope = if ruleset.last.is_a?(Hash)
+          [ruleset[0..-2], ruleset.last]
+        else
+          unless unscoped.map(&:to_sym).include?(type_name)
+            raise RulesError.new("Missing Scope for #{type_name}")
+          end
+          [ruleset, {}]
+        end
+
+        unless attrs.all?{|v| v.is_a?(Symbol) || v.is_a?(String) } 
+          raise RulesError.new('Attributes must be Strings or Symbols')
+        end
+
+        attrs = attrs.map(&:to_sym)
+        scope.symbolize_keys!
+
+        danger = scope.keys.to_set & attrs.map{|a| renamed(type_name, a) }.to_set
+        if danger.count > 0
+          raise RulesError.new("Don't let user set the scope: #{danger.to_a}")
+        end
+
+        cls = renames.fetch(:types, {})[type_name] ||
+          type_name.to_s.singularize.camelize.constantize
+
+        attrs.map{|a| renamed(type_name, a) }.each do |attr|
+          unless cls.new.respond_to?(attr)
+            raise NoMethodError.new("undefined method #{attr} for #{cls}")
+          end
+        end
+
+        types[type_name] = Type.new(type_name, cls, Rule.new(attrs, scope))
+      end
+    end
+
+    def build_resource(json)
+      return unless json.is_a? Hash
+      return unless json.fetch(:relationships, {}).is_a?(Hash)
+      return unless json.fetch(:attributes, {}).is_a?(Hash)
+      return unless type = types[json[:type].try(:to_sym)]
+
+      object = if json[:id].nil? || json[:id].to_s.starts_with?("@")
+        type.class.new.tap do |o|
+          type.rule.scope.each do |k,v|
+            o.send("#{k}=", v)
+          end
+        end
+      else
+        type.class.where(type.rule.scope).find(json[:id])
+      end
+
+      relationships = {}
+      json.fetch(:relationships, {}).each do |name, value|
+        next unless type.rule.attributes.include?(name)
+        relationships[renamed(type.name, name)] = if value[:data].is_a?(Array)
+          value[:data].map{|v| build_id(v) }
+        else
+          build_id(value[:data])
+        end
+      end
+
+      if attributes_to_be_set = json[:attributes]
+        type.rule.attributes.each do |name|
+          if value = attributes_to_be_set[name]
+            object.send("#{renamed(type.name, name)}=", value) 
+          end
+        end
+      end
+
+      resource = Resource.new(object, relationships, build_id(json))
+      resources[resource.id] = resource
+    end
+
+    def build_id(json)
+      Id.new(json[:type].to_sym, json[:id])
+    end
+
+    def assign_relationships(resource)
+      resource.relationships.each do |name, ids|
+        if ids.is_a?(Array)
+          ids.each do |id|
+            next unless other = find_resource_object(id)
+            resource.object.send(name).push(other)
+          end
+        else
+          next unless other = find_resource_object(ids)
+          resource.object.send("#{name}=", other)
+        end
+      end
+    end
+
+    def find_resource_object(id)
+      return unless type = types[id.type]
+
+      resources[id].try(:object) ||
+        type.class.where(type.rule.scope).find(id.raw) or
+        raise ActiveRecord::RecordNotFound
+          .new("Couldn't find #{id.type} with id=#{id.raw}")
+    end
+
+    def renamed(type, attr)
+      renames.fetch(:attributes, {}).fetch(type, {}).fetch(attr, attr)
+    end
+
     def save_all
-      data.is_a?(Array) ? data.each(&:save) : data.save
+      data.is_a?(Array) ? data.each(&:save) : data.try(:save)
       included.try(:each, &:save)
     end
 
     def collection?
       data.is_a?(Array)
-    end
-
-    # TODO: Save relationships in resource already as pointers.
-    # TODO: Try to stop using json ever again after this lookup is done.
-    def build_resource(json)
-      return unless (cls, rule = classes[json[:type].to_sym])
-
-      object = if json[:id].nil? || json[:id].to_s.starts_with?("@")
-        cls.new.tap do |o|
-          rule.scope.each do |k,v|
-            o.send("#{k}=", v)
-          end
-        end
-      else
-        cls.where(rule.scope).find(json[:id])
-      end
-
-      if attrs = json[:attributes]
-        rule.attributes.each do |name|
-          if value = attrs[name]
-            object.send("#{name}=", value) 
-          end
-        end
-      end
-
-      resource = Resource.new(object, json, build_json_id(json))
-      resources[resource.json_id] = resource
-      resource
-    end
-
-    # Building relationshisps depends on all resources to have been
-    # previously created and registered in the self.resources hash.
-    # TODO: Findind in resources should always raise.
-    def build_relationships(resource)
-      return unless relationships = resource.json[:relationships]
-      relationships.each do |name, value|
-        next unless rules[resource.json_id.type][:attributes].include?(name)
-        if value[:data].is_a?(Array)
-          value[:data].each do |v|
-            if other = find_resource_object(build_json_id(v))
-              resource.object.send(name).push(other)
-            end
-          end
-        else
-          if other = find_resource_object(build_json_id(value[:data]))
-            resource.object.send("#{name}=", other)
-          end
-        end
-      end
-    end
-
-    def build_json_id(json)
-      JsonId.new(json[:type].to_sym, json[:id])
-    end
-
-    def find_resource_object(json_id)
-      return unless (cls, rule = classes[json_id.type])
-
-      resources[json_id].try(:object) ||
-        cls.where(rule.scope).find(json_id.id) or
-        raise ActiveRecord::RecordNotFound
-          .new("Couldn't find #{json_id.type} with id=#{json_id.id}")
     end
   end
 end

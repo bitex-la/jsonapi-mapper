@@ -9,12 +9,14 @@ Gem::Specification.new do |spec|
   spec.authors       = ["nubis"]
   spec.email         = ["nb@bitex.la"]
 
-  spec.summary       = %q{Map jsonapi documents straight into activemodels}
+  spec.summary       = %q{Sanitize and Map jsonapi documents straight into activemodels}
   spec.description   = %q{
-    Can be used like strong params but for creating/updating a number of
-    active models. Main usage is parsing JSONAPI requests with multiple entities.
+    Sanitizes a jsonapi Document and maps it to ActiveRecord,
+    creating or updating as needed.
+    Prevents mistakes when assigingng attributes or referring to 
+    unscoped relationships.
   }
-  spec.homepage      = "https://github.com/bitex-la/jsonapi_mapper"
+  spec.homepage      = "https://github.com/bitex-la/jsonapi-mapper"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files -z`.split("\x0").reject do |f|
