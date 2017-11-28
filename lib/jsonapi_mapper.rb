@@ -32,7 +32,7 @@ module JsonapiMapper
         if data.is_a?(Array)
           data.map{|r| build_resource(r) }.compact
         else
-          build_resource(data)
+          [ build_resource(data) ].compact
         end
       end
 
@@ -42,8 +42,8 @@ module JsonapiMapper
 
       resources.each{|_,r| assign_relationships(r) }
 
-      self.data = main.is_a?(Array) ? main.map(&:object) : main.try(:object)
-      self.included = rest.try(:map, &:object)
+      self.data = main.try(:map, &:object) || []
+      self.included = rest.try(:map, &:object) || []
     end
 
     def setup_types(rules)
@@ -154,13 +154,30 @@ module JsonapiMapper
       renames.fetch(:attributes, {}).fetch(type, {}).fetch(attr, attr)
     end
 
+    def all
+      (data + included)
+    end
+
     def save_all
-      data.is_a?(Array) ? data.each(&:save) : data.try(:save)
-      included.try(:each, &:save)
+      return false unless all.all?(&:valid?)
+      all.each(&:save)
+      true
     end
 
     def collection?
-      data.is_a?(Array)
+      data.size > 1
+    end
+
+    def single?
+      !collection?
+    end
+
+    def map_data(cls, &blk)
+      data.select{|o| o.is_a?(cls)}.map(&blk)
+    end
+
+    def map_all(cls, &blk)
+      all.select{|o| o.is_a?(cls)}.map(&blk)
     end
   end
 end

@@ -70,9 +70,21 @@ See the specs directory for more examples.
         pet_dogs: [:name, country: 'argentina']
       )
 
-      person = mapper.data # This is the main document data as a new object
-      others = mapper.included # These are all the other resources.
-      mapper.save_all # Attempts to save both data and included.
+      # The document data lives in mapper.data
+      # It's always an array, even if the document had a single resource.
+      # If you want to check wether the document had a single resource
+      # or a collection as its primary data you can use the following methods.
+      mapper.collection? # Was primary document data a collection?
+      mapper.single? # Was primary document data a single resource?
+
+      person = mapper.data.first
+
+      # The rest of the included resources live in mapper.included
+      others = mapper.included 
+
+      # Attempts to save both data and included. Returns false if there
+      # were any validation errors.
+      mapper.save_all 
       
       # Four people have been created
       Person.count.should == 4

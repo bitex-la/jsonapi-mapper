@@ -8,6 +8,7 @@ end
 
 class PetDog < ActiveRecord::Base
   has_one :person, foreign_key: 'pet_id'
+  validates :name, presence: true
 end
 
 describe "Reads documents into models" do
@@ -86,9 +87,10 @@ describe "Reads documents into models" do
       people: [:name, :pet, :parent, :children, country: 'argentina'],
       pet_dogs: [:name, country: 'argentina']
 
-    person = mapper.data
-    person.save
-    person.reload.tap do |p|
+    mapper.save_all
+
+    mapper.should be_single
+    mapper.data.first.reload.tap do |p|
       p.pet.name.should == 'ace'
       p.pet.age.should be_nil
       p.parent.name.should == 'ana'
@@ -142,6 +144,7 @@ describe "Reads documents into models" do
     mapper = JsonapiMapper.doc document,
       people: [:name, :pet, :parent, :children, country: 'uruguay'],
       pet_dogs: [:name, country: 'uruguay']
+    mapper.should be_collection
     mapper.save_all
 
     bob.reload.name.should == 'rob'
@@ -152,7 +155,8 @@ describe "Reads documents into models" do
     it "ignores types that were not permitted" do
       mapper = JsonapiMapper.doc doc_updating_bob_ana_and_adding_pet,
         people: [:name, :pet, :parent, country: 'uruguay']
-      mapper.data.pet.should be_nil
+      mapper.should be_single
+      mapper.data.first.pet.should be_nil
       mapper.included.first.pet.should be_nil
 
       mapper.save_all
@@ -230,8 +234,8 @@ describe "Reads documents into models" do
         pet_dogs: [:person, country: 'uruguay']
 
       mapper.save_all
-
-      ace.reload.person.should == mapper.data.reload
+      mapper.should be_single
+      ace.reload.person.should == mapper.data.first.reload
     end
 
     it "can create and relate only happening in inner relationships" do
@@ -475,6 +479,28 @@ describe "Reads documents into models" do
           attributes: { pet_dogs: {nickname: :name, nationality: :country} }
         }).save_all
       end.to raise_exception JsonapiMapper::RulesError
+    end
+  end
+
+  describe "when saving all data" do
+    it "returns true and saves when everything was valid" do
+      mapper = JsonapiMapper.doc doc_updating_bob_ana_and_adding_pet,
+        people: [:name, :pet, :parent, country: 'uruguay'],
+        pet_dogs: [:name, country: 'uruguay']
+
+      mapper.save_all.should be_truthy
+      bob.reload.parent.should == ana
+      ana.reload.parent.should == bob
+    end
+
+    it "returns false and doesn't save if any resource had validation errors" do
+      mapper = JsonapiMapper.doc doc_updating_bob_ana_and_adding_pet,
+        people: [:name, :pet, :parent, country: 'uruguay'],
+        pet_dogs: [country: 'uruguay']
+
+      mapper.save_all.should be_falsey
+      bob.reload.parent.should be_nil
+      ana.reload.parent.should be_nil
     end
   end
 
