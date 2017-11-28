@@ -28,7 +28,7 @@ module JsonapiMapper
 
       setup_types(rules)
 
-      main = if data = document[:data]
+      main = if data = self.document[:data]
         if data.is_a?(Array)
           data.map{|r| build_resource(r) }.compact
         else
@@ -36,7 +36,7 @@ module JsonapiMapper
         end
       end
 
-      rest = if included = document[:included]
+      rest = if included = self.document[:included]
         included.map{|r| build_resource(r) }.compact
       end
 

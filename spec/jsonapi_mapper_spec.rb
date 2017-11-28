@@ -565,5 +565,20 @@ describe "Reads documents into models" do
 
       bob.reload.name.should == 'bob'
     end
+
+    it "works with documents that have strings as keys" do
+      stringy_doc = doc_updating_bob_ana_and_adding_pet.deep_stringify_keys
+      mapper = JsonapiMapper.doc stringy_doc,
+        people: [:name, :pet, :parent, country: 'uruguay'],
+        pet_dogs: [:name, country: 'uruguay']
+
+      mapper.save_all
+
+      bob.reload.parent.should == ana
+      ana.reload.parent.should == bob
+      bob.name.should == 'rob'
+      bob.pet.name.should == 'ace'
+      bob.pet.should == ana.pet
+    end
   end
 end
