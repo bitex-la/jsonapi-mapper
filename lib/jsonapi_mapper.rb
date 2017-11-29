@@ -18,21 +18,20 @@ module JsonapiMapper
 
   class DocumentMapper
     attr_accessor :document, :unscoped, :types, :renames, :resources,
-      :data, :included
+      :included, :data_mappable
 
     def initialize(document, unscoped, rules, renames)
       self.document = document.deep_symbolize_keys
       self.renames = renames.deep_symbolize_keys
       self.unscoped = unscoped.map(&:to_sym)
       self.resources = {}
-
       setup_types(rules)
-
-      main = if data = self.document[:data]
-        if data.is_a?(Array)
-          data.map{|r| build_resource(r) }.compact
+      
+      main = if data_mappable = self.document[:data]
+        if data_mappable.is_a?(Array)
+          data_mappable.map{|r| build_resource(r) }.compact
         else
-          [ build_resource(data) ].compact
+          [ build_resource(data_mappable) ].compact
         end
       end
 
@@ -42,7 +41,7 @@ module JsonapiMapper
 
       resources.each{|_,r| assign_relationships(r) }
 
-      self.data = main.try(:map, &:object) || []
+      self.data_mappable = main.try(:map, &:object) || []
       self.included = rest.try(:map, &:object) || []
     end
 
@@ -155,7 +154,7 @@ module JsonapiMapper
     end
 
     def all
-      (data + included)
+      (data_mappable + included)
     end
 
     def save_all
@@ -165,7 +164,7 @@ module JsonapiMapper
     end
 
     def collection?
-      data.size > 1
+      data_mappable.size > 1
     end
 
     def single?
@@ -173,11 +172,15 @@ module JsonapiMapper
     end
 
     def map_data(cls, &blk)
-      data.select{|o| o.is_a?(cls)}.map(&blk)
+      data_mappable.select{|o| o.is_a?(cls)}.map(&blk)
     end
 
     def map_all(cls, &blk)
       all.select{|o| o.is_a?(cls)}.map(&blk)
+    end
+
+    def data
+      collection? ? data_mappable : data_mappable.first
     end
   end
 end
