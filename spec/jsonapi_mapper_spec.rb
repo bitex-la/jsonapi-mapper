@@ -90,7 +90,7 @@ describe "Reads documents into models" do
     mapper.save_all
 
     mapper.should be_single
-    mapper.data.first.reload.tap do |p|
+    mapper.data.reload.tap do |p|
       p.pet.name.should == 'ace'
       p.pet.age.should be_nil
       p.parent.name.should == 'ana'
@@ -109,7 +109,6 @@ describe "Reads documents into models" do
       pet_dogs: [:name, country: 'uruguay']
 
     mapper.save_all
-
     bob.reload.parent.should == ana
     ana.reload.parent.should == bob
     bob.name.should == 'rob'
@@ -156,7 +155,7 @@ describe "Reads documents into models" do
       mapper = JsonapiMapper.doc doc_updating_bob_ana_and_adding_pet,
         people: [:name, :pet, :parent, country: 'uruguay']
       mapper.should be_single
-      mapper.data.first.pet.should be_nil
+      mapper.data.pet.should be_nil
       mapper.included.first.pet.should be_nil
 
       mapper.save_all
@@ -235,7 +234,7 @@ describe "Reads documents into models" do
 
       mapper.save_all
       mapper.should be_single
-      ace.reload.person.should == mapper.data.first.reload
+      ace.reload.person.should == mapper.data.reload
     end
 
     it "can create and relate only happening in inner relationships" do
