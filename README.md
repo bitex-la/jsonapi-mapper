@@ -71,13 +71,12 @@ See the specs directory for more examples.
       )
 
       # The document data lives in mapper.data
-      # It's always an array, even if the document had a single resource.
+      # It could be a simple or multiple resource response.
       # If you want to check wether the document had a single resource
       # or a collection as its primary data you can use the following methods.
       mapper.collection? # Was primary document data a collection?
       mapper.single? # Was primary document data a single resource?
 
-      person = mapper.data.first
 
       # The rest of the included resources live in mapper.included
       others = mapper.included 
