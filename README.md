@@ -146,6 +146,54 @@ See the specs directory for more examples.
           pets: {nickname: :name},
         }  
       }).save_all
+
+
+      # If any resource in your document has errors, you can get a collection
+      # with pointers to the specific fields and the type and id of the resource
+      # that has the error.
+      document = {
+        data: [
+          { type: 'pets', attributes: { age: 3 } },
+          { type: 'pets', attributes: { age: 6 } },
+        ],
+        included: [
+          { type: 'pets', id: '@1', attributes: { age: 4 } }
+        ]
+      }
+      mapper = JsonapiMapper.doc(document,
+        { pets: [:nickname, country: 'uruguay'] },
+        { types: { pets: PetDog }, attributes: { pets: {nickname: :name} } }
+      )
+
+      # all_valid? triggers all validations and sets up errors.
+      mapper.all_valid?.should be_falsey
+
+      # Then all errors are presented like so, honoring remapped names too.
+      mapper.all_errors.should == {
+        errors: [
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pets"},
+            source: {pointer: "/data/0/attributes/nickname"}
+          },
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pets"},
+            source: {pointer: "/data/1/attributes/nickname"}
+          },
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pets"},
+            source: {pointer: "/included/0/attributes/nickname"}
+          }
+        ]
+      }
 ```
 
 ## Development

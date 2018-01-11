@@ -501,6 +501,117 @@ describe "Reads documents into models" do
       bob.reload.parent.should be_nil
       ana.reload.parent.should be_nil
     end
+
+    it "Renders and shows errors from multiple resources in the whole document" do
+      document = {
+        data: { type: 'pet_dogs', attributes: { age: 3 } },
+        included: [
+          { type: 'pet_dogs', id: '@1', attributes: { age: 4 } }
+        ]
+      }
+      mapper = JsonapiMapper.doc document, pet_dogs: [country: 'uruguay']
+      mapper.all_valid?.should be_falsey
+      mapper.all_errors.should == {
+        errors: [
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pet_dogs"},
+            source: {pointer: "/data/attributes/name"}
+          },
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pet_dogs"},
+            source: {pointer: "/included/0/attributes/name"}
+          }
+        ]
+      }
+    end
+
+    it 'renders errors for collection' do
+      document = {
+        data: [
+          { type: 'pet_dogs', id: ace.id, attributes: { age: 3, name: nil } },
+          { type: 'pet_dogs', attributes: { age: 6 } },
+        ],
+        included: [
+          { type: 'pet_dogs', id: '@1', attributes: { age: 4 } }
+        ]
+      }
+      mapper = JsonapiMapper.doc document, pet_dogs: [:name, country: 'uruguay']
+      mapper.all_valid?.should be_falsey
+      mapper.all_errors.should == {
+        errors: [
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pet_dogs", id: ace.id },
+            source: {pointer: "/data/0/attributes/name"}
+          },
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pet_dogs"},
+            source: {pointer: "/data/1/attributes/name"}
+          },
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pet_dogs"},
+            source: {pointer: "/included/0/attributes/name"}
+          }
+        ]
+      }
+    end
+
+    it 'renames errors and classes when rendering errors' do
+      document = {
+        data: [
+          { type: 'pets', attributes: { age: 3 } },
+          { type: 'pets', attributes: { age: 6 } },
+        ],
+        included: [
+          { type: 'pets', id: '@1', attributes: { age: 4 } }
+        ]
+      }
+      mapper = JsonapiMapper.doc(document,
+        { pets: [:nickname, country: 'uruguay'] },
+        { types: { pets: PetDog }, attributes: { pets: {nickname: :name} } }
+      )
+
+      mapper.all_valid?.should be_falsey
+      mapper.all_errors.should == {
+        errors: [
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pets"},
+            source: {pointer: "/data/0/attributes/nickname"}
+          },
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pets"},
+            source: {pointer: "/data/1/attributes/nickname"}
+          },
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pets"},
+            source: {pointer: "/included/0/attributes/nickname"}
+          }
+        ]
+      }
+    end
   end
 
   describe "when handling corner cases of invalid data" do
@@ -604,6 +715,18 @@ describe "Reads documents into models" do
       bob.name.should == 'rob'
       bob.pet.name.should == 'ace'
       bob.pet.should == ana.pet
+    end
+
+    it "properly sets booleans to false" do
+      boss = Person.create(name: 'bob', admin: true)
+
+      document = {
+        data: { type: 'people', id: boss.id, attributes: { admin: false } }
+      }
+
+      mapper = JsonapiMapper.doc document, people: [:admin, id: boss.id]
+      mapper.save_all
+      mapper.data.should_not be_admin
     end
   end
 end

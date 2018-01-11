@@ -66,15 +66,14 @@ module JsonapiMapper
         attrs = attrs.map(&:to_sym)
         scope.symbolize_keys!
 
-        danger = scope.keys.to_set & attrs.map{|a| renamed(type_name, a) }.to_set
+        danger = scope.keys.to_set & attrs.map{|a| renamed_attr(type_name, a) }.to_set
         if danger.count > 0
           raise RulesError.new("Don't let user set the scope: #{danger.to_a}")
         end
 
-        cls = renames.fetch(:types, {})[type_name] ||
-          type_name.to_s.singularize.camelize.constantize
+        cls = renamed_type(type_name)
 
-        attrs.map{|a| renamed(type_name, a) }.each do |attr|
+        attrs.map{|a| renamed_attr(type_name, a) }.each do |attr|
           unless cls.new.respond_to?(attr)
             raise NoMethodError.new("undefined method #{attr} for #{cls}")
           end
@@ -103,18 +102,17 @@ module JsonapiMapper
       relationships = {}
       json.fetch(:relationships, {}).each do |name, value|
         next unless type.rule.attributes.include?(name)
-        relationships[renamed(type.name, name)] = if value[:data].is_a?(Array)
+        relationships[renamed_attr(type.name, name)] = if value[:data].is_a?(Array)
           value[:data].map{|v| build_id(v) }
         else
           build_id(value[:data])
         end
       end
 
-      if attributes_to_be_set = json[:attributes]
+      if new_values = json[:attributes]
         type.rule.attributes.each do |name|
-          if value = attributes_to_be_set[name]
-            object.send("#{renamed(type.name, name)}=", value) 
-          end
+          next unless new_values.has_key?(name)
+          object.send("#{renamed_attr(type.name, name)}=", new_values[name]) 
         end
       end
 
@@ -149,8 +147,23 @@ module JsonapiMapper
           .new("Couldn't find #{id.type} with id=#{id.raw}")
     end
 
-    def renamed(type, attr)
+    def renamed_type(type_name)
+      renames.fetch(:types, {})[type_name] ||
+        type_name.to_s.singularize.camelize.constantize
+    end
+
+    def unrenamed_type(type)
+      type_name = type.to_s.underscore.pluralize
+      renames.fetch(:types, {}).find{|k,v| v == type }.try(:first) || type_name
+    end
+
+    def renamed_attr(type, attr)
       renames.fetch(:attributes, {}).fetch(type, {}).fetch(attr, attr)
+    end
+
+    def unrenamed_attr(type_name, attr)
+      renames.fetch(:attributes, {}).fetch(type_name, {})
+        .find{|k,v| v == attr }.try(:first) || attr
     end
 
     def all
@@ -161,6 +174,10 @@ module JsonapiMapper
       return false unless all.all?(&:valid?)
       all.each(&:save)
       true
+    end
+
+    def all_valid?
+      all.map(&:valid?).all? # This does not short-circuit, to get all errors.
     end
 
     def collection?
@@ -181,6 +198,45 @@ module JsonapiMapper
 
     def data_mappable
       collection? ? data : [data].compact
+    end
+
+    def all_errors
+      errors = []
+
+      if collection?
+        data.each_with_index do |resource, i|
+          errors << serialize_errors_for("/data/#{i}", resource)
+        end
+      else
+        errors << serialize_errors_for("/data", data)
+      end
+      
+      included.each_with_index do |resource, i|
+        errors << serialize_errors_for("/included/#{i}", resource)
+      end
+
+      { errors: errors.flatten.compact }
+    end
+
+    private
+
+    def serialize_errors_for(prefix, model)
+      return if model.errors.empty?
+      model.errors.collect do |attr, value|
+        type_name = unrenamed_type(model.class)
+        meta = { type: type_name.to_s }
+        meta[:id] = model.id if model.id
+        {
+          status: 422,
+          title: value,
+          detail: value,
+          code: value.parameterize.underscore,
+          meta: meta,
+          source: {
+            pointer: "#{prefix}/attributes/#{unrenamed_attr(type_name, attr)}"
+          }
+        }
+      end
     end
   end
 end
