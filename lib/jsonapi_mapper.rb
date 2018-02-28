@@ -102,8 +102,9 @@ module JsonapiMapper
       relationships = {}
       json.fetch(:relationships, {}).each do |name, value|
         next unless type.rule.attributes.include?(name)
+        next if value[:data].blank?
         relationships[renamed_attr(type.name, name)] = if value[:data].is_a?(Array)
-          value[:data].map{|v| build_id(v) }
+          value[:data].map{|v| build_id(v) } 
         else
           build_id(value[:data])
         end

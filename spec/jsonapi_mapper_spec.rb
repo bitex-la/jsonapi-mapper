@@ -61,6 +61,29 @@ describe "Reads documents into models" do
     }
   end
 
+  it "creates a resource with a payload that include nil values" do
+    document = {
+      data: {
+        type: 'people',
+        attributes: { name: 'ian', admin: true },
+        relationships: {
+          pet: {data: nil},
+          children: {data: []}
+        }
+      }
+    }
+
+    mapper = JsonapiMapper.doc document,
+      people: [:name, :pet, country: 'argentina']
+  
+    mapper.save_all
+    mapper.should be_single
+    mapper.data.reload.tap do |p|
+      p.pet.should == nil
+      p.children.should be_blank
+    end
+  end
+
   it "creates a new resource with included associations" do
     document = {
       data: {
