@@ -660,6 +660,47 @@ describe "Reads documents into models" do
       ana.reload.pet.should be_a PetDog
     end
 
+    it "renders errors even when data is empty and included items have no id" do
+      document = {
+        included: [
+          { type: 'pet_dogs', attributes: { age: 4 } }
+        ]
+      }
+      mapper = JsonapiMapper.doc document, pet_dogs: [country: 'uruguay']
+      mapper.all_valid?.should be_falsey
+      mapper.all_errors.should == {
+        errors: [
+          { status: 422,
+            title: "can't be blank",
+            detail: "can't be blank",
+            code: "can_t_be_blank",
+            meta: {type: "pet_dogs"},
+            source: {pointer: "/included/0/attributes/name"}
+          }
+        ]
+      }
+    end
+
+    it "does not return success from save_all if any save failed" do
+      document = {
+        included: [
+          { 
+            type: 'people',
+            id: ana.id,
+            relationships: { pet: { data: { type: 'pet_dogs', id: '@1' }}}
+          },
+          { type: 'pet_dogs', id: '@1', attributes: { name: 'ace' } }
+        ]
+      }
+      mapper = JsonapiMapper.doc document,
+        people: [:name, :pet, :parent, country: 'uruguay'],
+        pet_dogs: [:name, country: 'uruguay']
+
+      mapper.included.first.stub(:save){ false }
+
+      mapper.save_all.should be_falsey
+    end
+
     it "supports missing included" do
       document = {
         data: { type: 'people', id: bob.id, attributes: {name: 'rob'} },

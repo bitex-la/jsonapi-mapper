@@ -173,8 +173,7 @@ module JsonapiMapper
 
     def save_all
       return false unless all.all?(&:valid?)
-      all.each(&:save)
-      true
+      all.collect(&:save).all?
     end
 
     def all_valid?
@@ -208,7 +207,7 @@ module JsonapiMapper
         data.each_with_index do |resource, i|
           errors << serialize_errors_for("/data/#{i}", resource)
         end
-      else
+      elsif data
         errors << serialize_errors_for("/data", data)
       end
       

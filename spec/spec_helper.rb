@@ -10,5 +10,6 @@ Dir[File.expand_path('../../spec/support/macros/**/*.rb', __FILE__)].map(&method
 
 RSpec.configure do |config|
   config.expect_with(:rspec) { |c| c.syntax = [:expect, :should] }
+  config.mock_with(:rspec) { |c| c.syntax = [:expect, :should] }
   config.include DatabaseMacros
 end
