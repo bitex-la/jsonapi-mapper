@@ -26,7 +26,7 @@ module JsonapiMapper
       self.unscoped = unscoped.map(&:to_sym)
       self.resources = {}
       setup_types(rules)
-      
+
       main = if data = self.document[:data]
         if data.is_a?(Array)
           data.map{|r| build_resource(r) }.compact.collect(&:object)
@@ -59,7 +59,7 @@ module JsonapiMapper
           [ruleset, {}]
         end
 
-        unless attrs.all?{|v| v.is_a?(Symbol) || v.is_a?(String) } 
+        unless attrs.all?{|v| v.is_a?(Symbol) || v.is_a?(String) }
           raise RulesError.new('Attributes must be Strings or Symbols')
         end
 
@@ -102,6 +102,7 @@ module JsonapiMapper
       relationships = {}
       json.fetch(:relationships, {}).each do |name, value|
         next unless type.rule.attributes.include?(name)
+        next if value[:data].blank?
         relationships[renamed_attr(type.name, name)] = if value[:data].is_a?(Array)
           value[:data].map{|v| build_id(v) }
         else
@@ -112,7 +113,7 @@ module JsonapiMapper
       if new_values = json[:attributes]
         type.rule.attributes.each do |name|
           next unless new_values.has_key?(name)
-          object.send("#{renamed_attr(type.name, name)}=", new_values[name]) 
+          object.send("#{renamed_attr(type.name, name)}=", new_values[name])
         end
       end
 
@@ -129,6 +130,7 @@ module JsonapiMapper
         if ids.is_a?(Array)
           ids.each do |id|
             next unless other = find_resource_object(id)
+            next if resource.object.send(name).nil?
             resource.object.send(name).push(other)
           end
         else
@@ -210,7 +212,7 @@ module JsonapiMapper
       else
         errors << serialize_errors_for("/data", data)
       end
-      
+
       included.each_with_index do |resource, i|
         errors << serialize_errors_for("/included/#{i}", resource)
       end
