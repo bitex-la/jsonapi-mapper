@@ -24,12 +24,12 @@ jobs:
       - slack/status:
           channel: devs-alerts
           fail_only: true
-    notify:
-      docker:
-        - image: circleci/ruby:2.5.7-node-browsers
-      steps:
-        - slack/status:
-            channel: devs-alerts
+  notify:
+    docker:
+      - image: circleci/ruby:2.5.7-node-browsers
+    steps:
+      - slack/status:
+          channel: devs-alerts
 
 workflows:
   version: 2
