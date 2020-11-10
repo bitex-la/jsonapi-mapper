@@ -1,7 +1,27 @@
-dependencies:
-  pre:
-    - gem install bundler 
+version: 2.1
 
-database:
-  override:
-    - echo "no database"
+orbs:
+  ruby: circleci/ruby@1.0
+
+jobs:
+  build:
+    docker:
+      - image: circleci/ruby:2.5.7-node-browsers
+        environment:
+          BUNDLE_JOBS: 4
+          BUNDLE_RETRY: 4
+          BUNDLE_PATH: vendor/bundle
+          RAILS_ENV: test
+          RACK_ENV: test
+          IN_CIRCLE: true
+    steps:
+      - checkout
+      - ruby/install-deps
+      - ruby/rspec-test
+
+workflows:
+  version: 2
+  build:
+    jobs:
+      - build
+
