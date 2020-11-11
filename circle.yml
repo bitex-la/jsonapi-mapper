@@ -18,7 +18,7 @@ jobs:
     steps:
       - checkout
       - ruby/install-deps:
-          with_cache: false
+          with-cache: false
       - ruby/rspec-test
       - store_artifacts:
           path: /tmp/artifacts
