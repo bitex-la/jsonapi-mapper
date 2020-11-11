@@ -17,7 +17,7 @@ jobs:
           IN_CIRCLE: true
     steps:
       - checkout
-      - ruby/install-deps
+      - ruby/install-deps:
           with_cache: false
       - ruby/rspec-test
       - store_artifacts:
