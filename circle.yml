@@ -28,7 +28,7 @@ jobs:
           command: |
             mkdir -p /tmp/test-results/rspec
             TESTFILES=$(circleci tests glob "spec/**/*_spec.rb" | circleci tests split --split-by=timings)
-            bundle exec rake spec $TESTFILES --profile 10 --format RspecJunitFormatter --out /tmp/test-results/rspec/results.xml --format progress
+            bundle exec appraisal rake spec $TESTFILES --profile 10 --format RspecJunitFormatter --out /tmp/test-results/rspec/results.xml --format progress
       - store_artifacts:
           path: /tmp/artifacts
       - slack/status:
