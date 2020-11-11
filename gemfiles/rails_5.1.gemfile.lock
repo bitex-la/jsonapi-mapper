@@ -54,9 +54,9 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  activemodel (~> 5.1, >= 5.0.0)
+  activemodel (~> 5.1, >= 5.1.0)
   activerecord (~> 5.1, >= 5.1.4)
-  activesupport (~> 5.1, >= 5.0.0)
+  activesupport (~> 5.1, >= 5.1.0)
   appraisal
   bundler (~> 1.15)
   byebug (~> 6.0, >= 6.0.0)
