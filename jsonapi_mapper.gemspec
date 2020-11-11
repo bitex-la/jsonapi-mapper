@@ -35,4 +35,5 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "activerecord", '~> 5.1', '>= 5.1.4'
   spec.add_development_dependency "sqlite3", "~> 1.0", ">= 1.0.0"
   spec.add_development_dependency "byebug", "~> 6.0", ">= 6.0.0"
+  spec.add_development_dependency "appraisal"
 end
