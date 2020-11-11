@@ -61,6 +61,13 @@ describe "Reads documents into models" do
     }
   end
 
+
+  it 'foo' do
+    puts "USING AR #{ActiveRecord.gem_version}"
+    puts "USING AS #{ActiveSupport.gem_version}"
+    puts "USING AM #{ActiveModel.gem_version}"
+  end
+
   it "creates a resource with a payload that include nil values" do
     document = {
       data: {
