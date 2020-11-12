@@ -9,7 +9,7 @@ module DatabaseMacros
       encoding: 'utf8'
     )
     # Silence everything
-    ActiveRecord::Base.logger = ActiveRecord::Migration[5.0].verbose = false
+    ActiveRecord::Base.logger = ActiveRecord::Migration.verbose = false
   end
 
   def cleanup_database!
@@ -19,7 +19,7 @@ module DatabaseMacros
   # Run migrations in the test database
   def run_migration(&block)
     # Create a new migration class
-    klass = Class.new(ActiveRecord::Migration[5.0])
+    klass = Class.new(ActiveRecord::Migration)
     # Create a new `up` that executes the argument
     klass.send(:define_method, :up) { instance_exec(&block) }
     # Create a new instance of it and execute its `up` method
