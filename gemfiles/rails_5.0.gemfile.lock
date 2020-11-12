@@ -9,13 +9,13 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (5.2.4.4)
-      activesupport (= 5.2.4.4)
-    activerecord (5.2.4.4)
-      activemodel (= 5.2.4.4)
-      activesupport (= 5.2.4.4)
-      arel (>= 9.0)
-    activesupport (5.2.4.4)
+    activemodel (5.0.7.2)
+      activesupport (= 5.0.7.2)
+    activerecord (5.0.7.2)
+      activemodel (= 5.0.7.2)
+      activesupport (= 5.0.7.2)
+      arel (~> 7.0)
+    activesupport (5.0.7.2)
       concurrent-ruby (~> 1.0, >= 1.0.2)
       i18n (>= 0.7, < 2)
       minitest (~> 5.1)
@@ -24,7 +24,7 @@ GEM
       bundler
       rake
       thor (>= 0.14.0)
-    arel (9.0.0)
+    arel (7.1.4)
     byebug (6.0.2)
     concurrent-ruby (1.1.7)
     diff-lcs (1.4.4)
@@ -55,9 +55,9 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
-  activemodel (~> 5.0, >= 5.0.0)
-  activerecord (~> 5.0, >= 5.0.0)
-  activesupport (~> 5.0, >= 5.0.0)
+  activemodel (~> 5.0.0)
+  activerecord (~> 5.0.0)
+  activesupport (~> 5.0.0)
   appraisal
   bundler (~> 1.15)
   byebug (~> 6.0, >= 6.0.0)
