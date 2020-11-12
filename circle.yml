@@ -20,14 +20,7 @@ jobs:
       - ruby/install-deps:
           bundler-version: 1.17.3
           with-cache: false
-      - run:
-          name: Install appraisal
-          command: bundle exec appraisal install
-      - run:
-          name: Run specs
-          command: bundle exec appraisal rake spec
-      - store_artifacts:
-          path: /tmp/artifacts
+      - ruby/rspec-test
       - slack/status:
           channel: devs-alerts
           fail_only: true
